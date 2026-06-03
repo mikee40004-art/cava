@@ -252,27 +252,30 @@
         }
         .report-summary h3 { color: #5c0618; font-family: 'Playfair Display', serif; font-size: 1.25rem; }
 
-        /* Contenedor específico para selectores de fecha */
+        /* Contenedor elegante para rango de fechas continuo */
         .report-filter-bar {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             background: #faf6f6;
-            padding: 8px 12px;
+            padding: 10px 15px;
             border-radius: 8px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             border: 1px solid #f0eae7;
             flex-wrap: wrap;
         }
-        .report-filter-bar label { font-size: 0.8rem; font-weight: 600; color: #5c0618; }
-        .report-filter-bar select, .report-filter-bar input {
-            padding: 4px 8px;
+        .report-filter-bar label { font-size: 0.8rem; font-weight: 600; color: #5c0618; text-transform: uppercase; letter-spacing: 0.3px; }
+        .report-filter-bar input {
+            padding: 6px 10px;
             border: 1px solid #d5cbca;
             border-radius: 6px;
             font-size: 0.8rem;
             outline: none;
             background: white;
+            color: #2c2523;
+            transition: border 0.2s;
         }
+        .report-filter-bar input:focus { border-color: #5c0618; }
 
         /* RESPONSIVIDAD MÓVIL */
         @media (max-width: 868px) {
@@ -284,7 +287,7 @@
             .report-container { padding: 10px; }
             .report-table th, .report-table td { padding: 5px 6px; font-size: 0.72rem; }
             .footer-action-group { width: 150px; }
-            .report-filter-bar { gap: 6px; padding: 6px; }
+            .report-filter-bar { gap: 8px; padding: 8px; }
         }
 
         /* CONFIGURACIÓN EXCLUSIVA PARA EL ESTILO DEL PDF EXPORTADO */
@@ -353,15 +356,13 @@
     <div class="report-container" id="report-printable-block">
         <h2 class="report-main-title" data-i18n="reportTitle">Reporte Diario - Corte de Caja</h2>
         
-        <!-- Barra de Filtros de Calendario para Reporte Diario/Mensual (Solo visible en Pantalla) -->
+        <!-- RANGO DE BUSQUEDA AMPLIADO POR CALENDARIO (FECHA INICIAL A FECHA FINAL) -->
         <div class="report-filter-bar" id="report-filter-controls">
-            <label>Periodicidad:</label>
-            <select id="report-period-type" onchange="togglePeriodInput()">
-                <option value="daily">Diario (Día exacto)</option>
-                <option value="monthly">Mensual (Mes completo)</option>
-            </select>
-            <input type="date" id="report-filter-date" onchange="renderReport()">
-            <input type="month" id="report-filter-month" class="hidden" onchange="renderReport()">
+            <label for="report-start-date">Fecha de:</label>
+            <input type="date" id="report-start-date" onchange="renderReport()">
+            
+            <label for="report-end-date">A Fecha:</label>
+            <input type="date" id="report-end-date" onchange="renderReport()">
         </div>
 
         <div class="table-responsive">
@@ -482,7 +483,6 @@
 </div>
 
 <script>
-// Base de datos inicial por si no hay datos almacenados en localStorage
 const initialInventory = [
     { id: 1, name: "Casa Madero 3V", category: "Tintos", country: "México", price: 850, glassPrice: 190, stock: 10, openGlasses: 0, glassesPerBottle: 5 },
     { id: 2, name: "Concha y Toro", category: "Tintos", country: "Chile", price: 650, glassPrice: 150, stock: 10, openGlasses: 0, glassesPerBottle: 5 },
@@ -492,18 +492,15 @@ const initialInventory = [
     { id: 6, name: "Whispering Angel", category: "Rosados", country: "Francia", price: 950, glassPrice: 210, stock: 10, openGlasses: 0, glassesPerBottle: 5 }
 ];
 
-// Carga persistente para que funcione en GitHub Pages de forma compartida en el mismo dispositivo
 let inventory = JSON.parse(localStorage.getItem('cava_inventory')) || initialInventory;
 let salesReport = JSON.parse(localStorage.getItem('cava_sales')) || [];
 let cart = [];
 let currentLang = 'es';
 let currentCategory = 'Todos';
 
-// CONTROL DE ACCESO SEGURIDAD
 let isAdminAuthenticated = false;
-const ADMIN_PASSWORD = "Cava"; 
+const ADMIN_PASSWORD = "CavaAdmin2026"; 
 
-// TRADUCCIONES
 const translations = {
     es: {
         logoTitle: "🍷 Cava de Vinos", tabPOS: "Punto de Venta", tabReport: "Corte de Caja",
@@ -529,7 +526,6 @@ const translations = {
     }
 };
 
-// Sincronización en LocalStorage
 function saveData() {
     localStorage.setItem('cava_inventory', JSON.stringify(inventory));
     localStorage.setItem('cava_sales', JSON.stringify(salesReport));
@@ -871,7 +867,7 @@ function checkout() {
     const method = document.getElementById('payment-method').value;
     const total = method === 'courtesy' ? 0 : cart.reduce((sum, item) => sum + item.price, 0);
 
-    // Registra la venta guardando la fecha actual ISO (YYYY-MM-DD)
+    // Registra la fecha actual ISO local (YYYY-MM-DD)
     const todayISO = new Date().toISOString().split('T')[0];
 
     salesReport.push({
@@ -899,33 +895,19 @@ function checkout() {
     showCustomAlert(currentLang === 'es' ? '¡Cargo procesado con éxito!' : 'Charge posted successfully!', '🍷');
 }
 
-// CONTROL DE INTERFAZ DEL CALENDARIO
-function togglePeriodInput() {
-    const period = document.getElementById('report-period-type').value;
-    if (period === 'daily') {
-        document.getElementById('report-filter-date').classList.remove('hidden');
-        document.getElementById('report-filter-month').classList.add('hidden');
-    } else {
-        document.getElementById('report-filter-date').classList.add('hidden');
-        document.getElementById('report-filter-month').classList.remove('hidden');
-    }
-    renderReport();
-}
-
-// REPORTE CON CAPACIDAD DE FILTRADO DIARIO Y MENSUAL
+// NUEVA FUNCIÓN DE FILTRADO CONTINUO POR RANGO (DESDE / HASTA)
 function renderReport() {
     const tbody = document.getElementById('report-body');
     tbody.innerHTML = '';
     let grandTotal = 0;
 
-    const periodType = document.getElementById('report-period-type').value;
-    const filterDate = document.getElementById('report-filter-date').value; // YYYY-MM-DD
-    const filterMonth = document.getElementById('report-filter-month').value; // YYYY-MM
+    const startDate = document.getElementById('report-start-date').value; // YYYY-MM-DD
+    const endDate = document.getElementById('report-end-date').value;     // YYYY-MM-DD
 
     salesReport.forEach(sale => {
-        // Validación de fechas para el filtro
-        if (periodType === 'daily' && filterDate && sale.date !== filterDate) return;
-        if (periodType === 'monthly' && filterMonth && (!sale.date || !sale.date.startsWith(filterMonth))) return;
+        // Lógica de rango continuo de fechas
+        if (startDate && sale.date < startDate) return;
+        if (endDate && sale.date > endDate) return;
 
         grandTotal += sale.total;
         
@@ -968,34 +950,32 @@ function renderReport() {
     document.getElementById('report-grand-total').innerText = grandTotal.toFixed(2);
 }
 
-// EXPORTAR ARCHIVO PDF (Apto para Clientes y Administradores en GitHub Pages)
+// EXPORTACIÓN AUTOMÁTICA DEL RANGO EXACTO A PDF
 function exportReportToPDF() {
     const element = document.getElementById('report-printable-block');
     const filterControls = document.getElementById('report-filter-controls');
     const btnPdf = document.getElementById('btn-pdf-trigger');
     const btnClear = document.getElementById('btn-clear-trigger');
 
-    // Ocultar temporalmente los controles interactivos para que no salgan en el PDF
+    // Ocultar controles interactivos para la foto del PDF
     filterControls.classList.add('hidden');
     btnPdf.classList.add('hidden');
     btnClear.classList.add('hidden');
     element.classList.add('pdf-render-area');
 
-    const periodType = document.getElementById('report-period-type').value;
-    const dateVal = document.getElementById('report-filter-date').value || "General";
-    const monthVal = document.getElementById('report-filter-month').value || "General";
-    const labelFilename = periodType === 'daily' ? dateVal : monthVal;
+    const startVal = document.getElementById('report-start-date').value || "Inicio";
+    const endVal = document.getElementById('report-end-date').value || "Fin";
 
     const options = {
         margin:       0.4,
-        filename:     `Corte_Caja_${labelFilename}.pdf`,
+        filename:     `Reporte_Cava_${startVal}_a_${endVal}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true },
         jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
     };
 
     html2pdf().set(options).from(element).save().then(() => {
-        // Restaurar la visibilidad original de la interfaz de la aplicación
+        // Mostrar los controles de vuelta en la pantalla de la app
         filterControls.classList.remove('hidden');
         btnPdf.classList.remove('hidden');
         btnClear.classList.remove('hidden');
@@ -1019,10 +999,14 @@ function executeCashCut() {
     }
 }
 
-// INICIALIZACIÓN POR DEFECTO
+// INICIALIZACIÓN DE LA APLICACIÓN
 window.onload = function() {
-    // Establecer la fecha de hoy en el calendario por defecto
-    document.getElementById('report-filter-date').value = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    // Por defecto, inicializa el rango "Desde / Hasta" con el día de hoy
+    document.getElementById('report-start-date').value = todayStr;
+    document.getElementById('report-end-date').value = todayStr;
+    
     renderCatalog();
     renderReport();
 };
@@ -1030,4 +1014,3 @@ window.onload = function() {
 
 </body>
 </html>
-
