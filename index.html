@@ -1,1 +1,1033 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cava POS Premium - Aplicación Fija</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght=600&family=Poppins:wght=300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Librería externa para generación nativa de PDF en el cliente (GitHub Pages) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        /* --- CONFIGURACIÓN DE PANTALLA FIJA (ESTILO APP NATIVA) --- */
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Poppins', sans-serif; 
+        }
+        
+        html, body { 
+            height: 100vh; 
+            height: 100dvh; 
+            overflow: hidden; 
+            background-color: #fcfbfc; 
+            color: #2c2523; 
+            display: flex;
+            flex-direction: column;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* --- HEADER --- */
+        header { 
+            background-color: #5c0618; 
+            color: white; 
+            padding: 12px 25px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+        .logo { font-family: 'Playfair Display', serif; font-size: 1.5rem; letter-spacing: 1px; }
+        .header-controls { display: flex; align-items: center; gap: 15px; }
+
+        .lang-switch { background: transparent; border: 1px solid rgba(255, 255, 255, 0.4); color: white; padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 0.8rem; white-space: nowrap; }
+        .tab-nav { background: rgba(0,0,0,0.15); padding: 4px; border-radius: 30px; display: flex; }
+        .nav-tab { background: transparent; border: none; color: rgba(255,255,255,0.7); padding: 6px 16px; cursor: pointer; border-radius: 25px; font-weight: 500; font-size: 0.85rem; transition: all 0.2s; white-space: nowrap; }
+        .nav-tab.active, .nav-tab:hover { background: #c5a059; color: white; }
+
+        /* --- CONTENEDORES PRINCIPALES --- */
+        .tab-content { 
+            display: none; 
+            flex: 1;
+            height: calc(100% - 60px);
+            overflow: hidden;
+            padding: 15px 25px; 
+        }
+        .tab-content.active { display: flex; flex-direction: column; }
+        .hidden { display: none !important; }
+        
+        .pos-layout { 
+            display: flex; 
+            flex-direction: column; 
+            height: 100%;
+            justify-content: space-between;
+        }
+
+        /* --- FILTROS DESLIZABLES --- */
+        .filter-wrapper { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+        .filters-level-1 { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+        .filters-level-1::-webkit-scrollbar { display: none; }
+
+        .filter-btn { padding: 8px 18px; border: 1px solid #e2dcd9; background: white; color: #5c0618; cursor: pointer; border-radius: 25px; font-weight: 500; font-size: 0.85rem; white-space: nowrap; flex-shrink: 0; }
+        .filter-btn.active, .filter-btn:hover { background: #5c0618; color: white; border-color: #5c0618; }
+
+        .filters-level-2 { background: #f4efed; padding: 8px 15px; border-radius: 12px; display: flex; align-items: center; gap: 12px; }
+        .filter-label { font-size: 0.75rem; font-weight: 600; color: #7a6e6a; text-transform: uppercase; }
+        .country-buttons-group { display: flex; gap: 8px; overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; }
+        .country-buttons-group::-webkit-scrollbar { display: none; }
+        .country-buttons-group .filter-btn { padding: 5px 14px; font-size: 0.8rem; }
+
+        /* --- ÁREA DE PRODUCTOS --- */
+        .catalog-section { 
+            flex: 1; 
+            overflow-y: auto; 
+            margin-bottom: 15px;
+            padding-right: 5px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+        .product-card { background: white; border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.02); border: 1px solid #f0eae7; }
+
+        .product-info { flex: 1; display: flex; flex-direction: column; }
+        .stock-badge { align-self: flex-start; background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 20px; font-size: 0.65rem; font-weight: 600; margin-bottom: 4px; display: inline-flex; align-items: center; gap: 4px; }
+        .stock-badge.low { background: #ffebee; color: #c62828; }
+        .product-info h4 { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #2c2523; }
+        .product-country { font-size: 0.75rem; color: #8e827e; margin-bottom: 4px; }
+        .product-price-container { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; font-size: 0.85rem; color: #5c0618; }
+        .price-line { font-weight: 500; }
+        .price-line strong { font-weight: 600; }
+
+        .product-photo-box { width: 65px; height: 95px; background-color: #faf8f7; border: 1px dashed #d5cbca; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-left: 10px; color: #b5a8a6; font-size: 0.6rem; text-align: center; padding: 4px; line-height: 1.2; text-transform: uppercase; flex-shrink: 0; }
+
+        .btn-action-group { display: flex; gap: 6px; width: 100%; margin-top: 4px; }
+        .add-btn { flex: 1; background: #faf6f6; border: 1px solid #5c0618; color: #5c0618; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.75rem; transition: all 0.2s ease; white-space: nowrap; text-align: center; }
+        .add-btn:hover { background: #5c0618; color: white; }
+        .add-btn:disabled { background: #f0eae7; border-color: #d5cbca; color: #a39592; cursor: not-allowed; }
+
+        /* --- BARRA INFERIOR CON CONTROL DE BOTONES VERTICALES --- */
+        .cart-bottom-section { 
+            background: white; 
+            border-radius: 14px; 
+            padding: 12px 25px; 
+            box-shadow: 0 -8px 25px rgba(0,0,0,0.04); 
+            border: 1px solid #f0eae7; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            flex-shrink: 0;
+        }
+        .cart-col { display: flex; flex-direction: column; justify-content: space-between; }
+        .section-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #8e827e; margin-bottom: 10px; border-bottom: 1px solid #f4efed; padding-bottom: 4px; }
+
+        /* Contenedor agrupador para los botones de control */
+        .footer-action-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 180px;
+            flex-shrink: 0;
+        }
+
+        /* Inputs */
+        .elegant-input-group { position: relative; margin-bottom: 10px; }
+        .elegant-input-group input { width: 100%; padding: 8px 12px; border: 1px solid #d5cbca; background: #fdfcfc; border-radius: 6px; font-size: 0.85rem; outline: none; transition: border 0.2s; }
+        .elegant-input-group label { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9e918e; transition: all 0.2s; pointer-events: none; font-size: 0.85rem; }
+        .elegant-input-group input:focus, .elegant-input-group input:not(:placeholder-shown) { border-color: #5c0618; background: white; }
+        .elegant-input-group input:focus ~ label, .elegant-input-group input:not(:placeholder-shown) ~ label { top: 0; background: white; padding: 0 4px; font-size: 0.7rem; color: #5c0618; font-weight: 500; }
+        .elegant-input-group input:placeholder-shown { border-left: 3px solid #c62828; }
+        .elegant-input-group input:not(:placeholder-shown) { border-left: 3px solid #2e7d32; }
+
+        /* Lista interna de carrito */
+        .items-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .clear-cart-btn { background: transparent; border: none; color: #c62828; cursor: pointer; font-size: 0.75rem; font-weight: 500; }
+        .cart-items-list { flex: 1; overflow-y: auto; max-height: 120px; padding-right: 5px; -webkit-overflow-scrolling: touch; margin-bottom: 5px; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px dashed #f4efed; font-size: 0.8rem; }
+        .remove-item-btn { background: none; border: none; color: #b5a8a6; cursor: pointer; font-size: 0.8rem; }
+
+        /* Totales */
+        .exchange-rate-bar { background: #faf6f6; padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; color: #5c0618; display: flex; justify-content: space-between; margin-bottom: 8px; border: 1px solid rgba(92,6,24,0.08); }
+        .elegant-select-group select { width: 100%; padding: 8px; border: 1px solid #d5cbca; background: white; border-radius: 6px; font-size: 0.85rem; color: #2c2523; outline: none; margin-bottom: 8px; cursor: pointer; }
+
+        .total-display { display: flex; justify-content: space-between; align-items: center; }
+        .total-label { font-size: 0.8rem; color: #7a6e6a; }
+        .total-amount { font-family: 'Playfair Display', serif; color: #5c0618; font-size: 1.3rem; }
+        .total-amount small { font-family: 'Poppins', sans-serif; font-size: 0.75rem; color: #8e827e; }
+
+        .checkout-btn { width: 100%; padding: 10px; background: #c5a059; color: white; font-size: 0.9rem; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+        .checkout-btn:hover { background: #b38f49; }
+
+        /* --- VENTANA MODAL INTEGRADA --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .modal-content {
+            background: white;
+            padding: 22px;
+            border-radius: 14px;
+            border: 2px solid #5c0618;
+            width: 90%;
+            max-width: 480px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .modal-divider { border: 0; border-top: 1px solid #f4efed; margin: 4px 0; }
+
+        /* Estilo específico para el modal de alerta de la app */
+        .alert-content {
+            max-width: 340px;
+            text-align: center;
+            border: 2px solid #c5a059;
+            padding: 25px;
+        }
+        .alert-icon {
+            font-size: 2.8rem;
+            margin-bottom: 8px;
+        }
+        .alert-message {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #2c2523;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        /* --- DISEÑO DE REPORTE Y ADMIN --- */
+        .report-container { 
+            background: white; 
+            padding: 15px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03); 
+            border: 2px solid #5c0618; 
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-height: 100%; 
+            overflow: hidden;
+        }
+        .report-main-title { font-family: 'Playfair Display', serif; color: #5c0618; font-size: 1.25rem; margin-bottom: 10px; text-align: center; letter-spacing: 0.5px; flex-shrink: 0; }
+        
+        .table-responsive { 
+            flex: 1; 
+            overflow-y: auto; 
+            border: 1px solid #f0eae7; 
+            border-radius: 6px; 
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 8px;
+        }
+        .report-table { width: 100%; border-collapse: collapse; }
+        
+        .report-table th, .report-table td { 
+            padding: 6px 10px; 
+            text-align: left; 
+            border-bottom: 1px solid #f4efed; 
+            font-size: 0.78rem; 
+        }
+        .report-table th { background-color: #5c0618; color: white; font-weight: 500; position: sticky; top: 0; z-index: 10; }
+        
+        .report-summary { 
+            display: flex; 
+            justify-content: flex-end; 
+            align-items: center; 
+            gap: 15px; 
+            padding-top: 10px; 
+            border-top: 2px dashed #d5cbca; 
+            flex-shrink: 0; 
+            flex-wrap: wrap;
+        }
+        .report-summary h3 { color: #5c0618; font-family: 'Playfair Display', serif; font-size: 1.25rem; }
+
+        /* Contenedor específico para selectores de fecha */
+        .report-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #faf6f6;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #f0eae7;
+            flex-wrap: wrap;
+        }
+        .report-filter-bar label { font-size: 0.8rem; font-weight: 600; color: #5c0618; }
+        .report-filter-bar select, .report-filter-bar input {
+            padding: 4px 8px;
+            border: 1px solid #d5cbca;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            outline: none;
+            background: white;
+        }
+
+        /* RESPONSIVIDAD MÓVIL */
+        @media (max-width: 868px) {
+            header { padding: 10px 15px; flex-direction: column; gap: 8px; }
+            .header-controls { width: 100%; justify-content: space-between; }
+            .tab-content { padding: 8px 10px; height: calc(100% - 90px); }
+            .cart-bottom-section { flex-direction: row; justify-content: space-between; padding: 12px 15px; }
+            .product-grid { grid-template-columns: 1fr; }
+            .report-container { padding: 10px; }
+            .report-table th, .report-table td { padding: 5px 6px; font-size: 0.72rem; }
+            .footer-action-group { width: 150px; }
+            .report-filter-bar { gap: 6px; padding: 6px; }
+        }
+
+        /* CONFIGURACIÓN EXCLUSIVA PARA EL ESTILO DEL PDF EXPORTADO */
+        .pdf-render-area {
+            padding: 20px !important;
+            background: white !important;
+            color: black !important;
+        }
+        .pdf-render-area .report-main-title { color: #5c0618 !important; }
+        .pdf-render-area th { background-color: #5c0618 !important; color: white !important; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo" data-i18n="logoTitle">🍷 Cava de Vinos</div>
+    <div class="header-controls">
+        <button id="btn-lang" class="lang-switch" onclick="toggleLanguage()">English</button>
+        <div class="tab-nav">
+            <button class="nav-tab active" onclick="switchTab('pos', this)" data-i18n="tabPOS">Punto de Venta</button>
+            <button class="nav-tab" onclick="switchTab('report', this)" data-i18n="tabReport">Corte de Caja</button>
+        </div>
+    </div>
+</header>
+
+<main id="tab-pos" class="tab-content active">
+    <div class="pos-layout">
+        
+        <section class="catalog-section">
+            <div class="filter-wrapper">
+                <div class="filters-level-1">
+                    <button class="filter-btn active" onclick="filterCategory('Todos', event)" data-i18n="catAll">Todos</button>
+                    <button class="filter-btn" onclick="filterCategory('Tintos', event)" data-i18n="catRed">Tintos</button>
+                    <button class="filter-btn" onclick="filterCategory('Blancos', event)" data-i18n="catWhite">Blancos</button>
+                    <button class="filter-btn" onclick="filterCategory('Rosados', event)" data-i18n="catRose">Rosados</button>
+                    <button class="filter-btn" onclick="filterCategory('Champagne', event)">Champagne</button>
+                </div>
+                <div id="filters-level-2" class="filters-level-2 hidden">
+                    <span class="filter-label" data-i18n="filterCountry">País:</span>
+                    <div id="country-buttons" class="country-buttons-group"></div>
+                </div>
+            </div>
+
+            <div id="product-grid" class="product-grid"></div>
+        </section>
+
+        <footer class="cart-bottom-section">
+            <div class="total-display">
+                <span class="total-label" style="margin-right: 8px;">Total Vista Previa:</span>
+                <h2 class="total-amount">$<span id="footer-total">0.00</span> <small>MXN</small></h2>
+            </div>
+            
+            <div class="footer-action-group">
+                <button class="checkout-btn" onclick="openDatosVenta()" style="background: #5c0618; padding: 10px 15px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 6px;">
+                    <span>🛒</span> <span data-i18n="btnDatosVenta">Datos de Venta</span>
+                </button>
+                <button class="checkout-btn" onclick="switchTab('admin')" style="background: #2c2523; padding: 6px 15px; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 6px; opacity: 0.9;">
+                    <span>🔒</span> <span>Admin</span>
+                </button>
+            </div>
+        </footer>
+    </div>
+</main>
+
+<main id="tab-report" class="tab-content hidden">
+    <div class="report-container" id="report-printable-block">
+        <h2 class="report-main-title" data-i18n="reportTitle">Reporte Diario - Corte de Caja</h2>
+        
+        <!-- Barra de Filtros de Calendario para Reporte Diario/Mensual (Solo visible en Pantalla) -->
+        <div class="report-filter-bar" id="report-filter-controls">
+            <label>Periodicidad:</label>
+            <select id="report-period-type" onchange="togglePeriodInput()">
+                <option value="daily">Diario (Día exacto)</option>
+                <option value="monthly">Mensual (Mes completo)</option>
+            </select>
+            <input type="date" id="report-filter-date" onchange="renderReport()">
+            <input type="month" id="report-filter-month" class="hidden" onchange="renderReport()">
+        </div>
+
+        <div class="table-responsive">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th data-i18n="colId">ID Venta</th>
+                        <th data-i18n="colGuest">Huésped</th>
+                        <th data-i18n="colRoom">Hab.</th>
+                        <th data-i18n="colWaiter">Mesero</th> 
+                        <th data-i18n="colMethod">Pago</th>
+                        <th data-i18n="colTotal">Total</th>
+                    </tr>
+                </thead>
+                <tbody id="report-body"></tbody>
+            </table>
+        </div>
+        <div class="report-summary">
+            <span data-i18n="reportTotal">Corte Total:</span>
+            <h3>$<span id="report-grand-total">0.00</span> MXN</h3>
+            <button class="checkout-btn" style="width: auto; padding: 8px 15px; background: #c5a059;" id="btn-pdf-trigger" onclick="exportReportToPDF()">📄 Guardar PDF</button>
+            <button class="checkout-btn" style="width: auto; padding: 8px 20px; background: #5c0618;" id="btn-clear-trigger" onclick="executeCashCut()" data-i18n="btnExecuteReport">Cerrar Caja</button>
+        </div>
+    </div>
+</main>
+
+<main id="tab-admin" class="tab-content hidden">
+    <div id="admin-auth" class="report-container" style="max-width: 360px; margin: 40px auto; gap: 15px; height: auto;">
+        <h3 class="report-main-title">Acceso Administrador</h3>
+        <div class="elegant-input-group">
+            <input type="password" id="admin-pass-input" placeholder=" ">
+            <label>Contraseña de Seguridad</label>
+        </div>
+        <button class="checkout-btn" onclick="loginAdmin()" style="background: #5c0618;">Validar Acceso</button>
+    </div>
+    
+    <div id="admin-panel" class="report-container hidden">
+        <h2 class="report-main-title">Ingresar Piezas al Stock (Incrementar)</h2>
+        <div class="table-responsive">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Vino / Producto</th>
+                        <th>Categoría</th>
+                        <th>Stock Actual</th>
+                        <th>Cantidad a Añadir</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-inventory-body"></tbody>
+            </table>
+        </div>
+        <button class="checkout-btn" onclick="logoutAdmin()" style="background: #8e827e; width: auto; align-self: flex-end; padding: 8px 20px;">Bloquear / Salir</button>
+    </div>
+</main>
+
+<div id="modal-datos" class="modal-overlay hidden">
+    <div class="modal-content">
+        <h3 class="section-title" data-i18n="guestData" style="margin-bottom: 4px;">Datos de Venta</h3>
+        
+        <div class="elegant-input-group">
+            <input type="text" id="guest-name" required placeholder=" ">
+            <label data-i18n="guestPlaceholder">Nombre del Huésped</label>
+        </div>
+        <div class="elegant-input-group">
+            <input type="text" id="guest-room" required placeholder=" ">
+            <label data-i18n="roomPlaceholder">No. Habitación</label>
+        </div>
+        <div class="elegant-input-group">
+            <input type="text" id="waiter-name" required placeholder=" ">
+            <label data-i18n="waiterPlaceholder">Nombre del Mesero</label>
+        </div>
+
+        <hr class="modal-divider">
+
+        <div class="cart-col items-column">
+            <div class="items-header">
+                <h3 class="section-title" data-i18n="cartTitle">Carrito</h3>
+                <button class="clear-cart-btn" onclick="clearCart()">Limpiar Carrito</button>
+            </div>
+            <div id="cart-items" class="cart-items-list"></div>
+        </div>
+
+        <hr class="modal-divider">
+
+        <div class="cart-col totals-column">
+            <div class="exchange-rate-bar">
+                <span data-i18n="exchangeRate">Tipo de Cambio:</span>
+                <strong>1 USD = 18.00 MXN</strong>
+            </div>
+            <div class="elegant-select-group">
+                <select id="payment-method" onchange="renderCart()">
+                    <option value="room" data-i18n="payRoom">Cargo a Habitación</option>
+                    <option value="card" data-i18n="payCard">Tarjeta de Crédito</option>
+                    <option value="cash" data-i18n="payCash">Efectivo</option>
+                    <option value="courtesy" data-i18n="payCourtesy">Cortesía</option>
+                </select>
+            </div>
+            <div class="total-display" style="margin-bottom: 12px;">
+                <span class="total-label">Total a Confirmar</span>
+                <h2 class="total-amount">$<span id="cart-total">0.00</span> <small>MXN</small></h2>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button class="checkout-btn" onclick="closeDatosVenta()" style="background: #8e827e; flex: 1;">Volver</button>
+                <button class="checkout-btn" onclick="checkout()" data-i18n="btnCheckout" style="flex: 1.8;">Confirmar Cargo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="custom-alert" class="modal-overlay hidden" style="z-index: 3000;">
+    <div class="modal-content alert-content">
+        <div id="alert-icon" class="alert-icon">🍷</div>
+        <p id="alert-message" class="alert-message">Mensaje</p>
+        <button class="checkout-btn" onclick="closeCustomAlert()" style="background: #5c0618; margin-top: 5px;">Aceptar</button>
+    </div>
+</div>
+
+<script>
+// Base de datos inicial por si no hay datos almacenados en localStorage
+const initialInventory = [
+    { id: 1, name: "Casa Madero 3V", category: "Tintos", country: "México", price: 850, glassPrice: 190, stock: 10, openGlasses: 0, glassesPerBottle: 5 },
+    { id: 2, name: "Concha y Toro", category: "Tintos", country: "Chile", price: 650, glassPrice: 150, stock: 10, openGlasses: 0, glassesPerBottle: 5 },
+    { id: 3, name: "Catena Zapata", category: "Tintos", country: "Argentina", price: 1200, glassPrice: 260, stock: 10, openGlasses: 0, glassesPerBottle: 5 },
+    { id: 4, name: "Monte Xanic", category: "Blancos", country: "México", price: 700, glassPrice: 160, stock: 10, openGlasses: 0, glassesPerBottle: 5 },
+    { id: 5, name: "Moët & Chandon", category: "Champagne", country: "Francia", price: 2500, glassPrice: null, stock: 10, openGlasses: 0, glassesPerBottle: 5 },
+    { id: 6, name: "Whispering Angel", category: "Rosados", country: "Francia", price: 950, glassPrice: 210, stock: 10, openGlasses: 0, glassesPerBottle: 5 }
+];
+
+// Carga persistente para que funcione en GitHub Pages de forma compartida en el mismo dispositivo
+let inventory = JSON.parse(localStorage.getItem('cava_inventory')) || initialInventory;
+let salesReport = JSON.parse(localStorage.getItem('cava_sales')) || [];
+let cart = [];
+let currentLang = 'es';
+let currentCategory = 'Todos';
+
+// CONTROL DE ACCESO SEGURIDAD
+let isAdminAuthenticated = false;
+const ADMIN_PASSWORD = "Cava"; 
+
+// TRADUCCIONES
+const translations = {
+    es: {
+        logoTitle: "🍷 Cava de Vinos", tabPOS: "Punto de Venta", tabReport: "Corte de Caja",
+        catAll: "Todos", catRed: "Tintos", catWhite: "Blancos", catRose: "Rosados",
+        filterCountry: "País:", guestData: "Datos de Venta", guestPlaceholder: "Nombre del Huésped",
+        roomPlaceholder: "No. Habitación", waiterPlaceholder: "Nombre del Mesero", cartTitle: "Carrito", 
+        btnClear: "Limpiar Carrito", exchangeRate: "Tipo de Cambio:", payRoom: "Cargo a Habitación", 
+        payCard: "Tarjeta de Crédito", payCash: "Efectivo", payCourtesy: "Cortesía", btnCheckout: "Confirmar Cargo", 
+        reportTitle: "Reporte Diario - Corte de Caja", colId: "ID Venta", colGuest: "Huésped", 
+        colRoom: "Hab.", colWaiter: "Mesero", colMethod: "Pago", colTotal: "Total", reportTotal: "Corte Total:",
+        btnExecuteReport: "Cerrar Caja", btnDatosVenta: "Datos de Venta"
+    },
+    en: {
+        logoTitle: "🍷 Wine Cellar", tabPOS: "Point of Sale", tabReport: "Sales Report",
+        catAll: "All", catRed: "Red Wines", catWhite: "White Wines", catRose: "Rosé",
+        filterCountry: "Country:", guestData: "Sales Info", guestPlaceholder: "Guest Name",
+        roomPlaceholder: "Room No.", waiterPlaceholder: "Waiter Name", cartTitle: "Cart", 
+        btnClear: "Clear Cart", exchangeRate: "Exchange Rate:", payRoom: "Room Charge", 
+        payCard: "Credit Card", payCash: "Cash", payCourtesy: "Courtesy", btnCheckout: "Confirm Charge", 
+        reportTitle: "Daily Report - End of Shift", colId: "Sale ID", colGuest: "Guest", 
+        colRoom: "Rm.", colWaiter: "Waiter", colMethod: "Method", colTotal: "Total", reportTotal: "Grand Total:",
+        btnExecuteReport: "Close Shift", btnDatosVenta: "Sales Data"
+    }
+};
+
+// Sincronización en LocalStorage
+function saveData() {
+    localStorage.setItem('cava_inventory', JSON.stringify(inventory));
+    localStorage.setItem('cava_sales', JSON.stringify(salesReport));
+}
+
+function showCustomAlert(message, icon = '🍷') {
+    document.getElementById('alert-message').innerText = message;
+    document.getElementById('alert-icon').innerText = icon;
+    document.getElementById('custom-alert').classList.remove('hidden');
+}
+
+function closeCustomAlert() {
+    document.getElementById('custom-alert').classList.add('hidden');
+}
+
+function toggleLanguage() {
+    currentLang = currentLang === 'es' ? 'en' : 'es';
+    document.getElementById('btn-lang').innerText = currentLang === 'es' ? 'English' : 'Español';
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.innerText = translations[currentLang][el.getAttribute('data-i18n')];
+    });
+    renderCatalog();
+    renderReport();
+}
+
+function switchTab(tabId, element) {
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.add('hidden');
+        tab.classList.remove('active');
+    });
+    
+    document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
+    
+    const targetTab = document.getElementById('tab-' + tabId);
+    if (targetTab) {
+        targetTab.classList.remove('hidden');
+        targetTab.classList.add('active');
+    }
+    
+    if (element) {
+        element.classList.add('active');
+    }
+
+    if (tabId === 'admin') {
+        if (isAdminAuthenticated) {
+            document.getElementById('admin-auth').classList.add('hidden');
+            document.getElementById('admin-panel').classList.remove('hidden');
+            renderAdminInventory();
+        } else {
+            document.getElementById('admin-auth').classList.remove('hidden');
+            document.getElementById('admin-panel').classList.add('hidden');
+        }
+    }
+}
+
+function filterCategory(category, event) {
+    currentCategory = category;
+    document.querySelectorAll('.filters-level-1 .filter-btn').forEach(btn => btn.classList.remove('active'));
+    if (event && event.target) event.target.classList.add('active');
+
+    const level2 = document.getElementById('filters-level-2');
+    const countryButtons = document.getElementById('country-buttons');
+    countryButtons.innerHTML = '';
+
+    if (category === 'Todos' || category === 'Champagne') {
+        level2.classList.add('hidden');
+    } else {
+        level2.classList.remove('hidden');
+        const countries = [...new Set(inventory.filter(p => p.category === category).map(p => p.country))];
+        let allBtn = document.createElement('button');
+        allBtn.className = 'filter-btn active';
+        allBtn.innerText = currentLang === 'es' ? 'Cualquiera' : 'Any';
+        allBtn.onclick = (e) => { setActiveCountryBtn(e.target); renderCatalog(); };
+        countryButtons.appendChild(allBtn);
+
+        countries.forEach(country => {
+            let btn = document.createElement('button');
+            btn.className = 'filter-btn';
+            btn.innerText = country;
+            btn.onclick = (e) => { setActiveCountryBtn(e.target); renderCatalog(country); };
+            countryButtons.appendChild(btn);
+        });
+    }
+    renderCatalog();
+}
+
+function setActiveCountryBtn(targetBtn) {
+    document.querySelectorAll('.country-buttons-group .filter-btn').forEach(b => b.classList.remove('active'));
+    targetBtn.classList.add('active');
+}
+
+function renderCatalog(filterCountry = null) {
+    const grid = document.getElementById('product-grid');
+    grid.innerHTML = '';
+    let products = inventory;
+    if (currentCategory !== 'Todos') products = products.filter(p => p.category === currentCategory);
+    if (filterCountry) products = products.filter(p => p.country === filterCountry);
+
+    products.forEach(product => {
+        const isLowStock = product.stock <= 3;
+        const stockClass = isLowStock ? 'stock-badge low' : 'stock-badge';
+        
+        let labelStock = `${currentLang === 'es' ? 'Botellas' : 'Bottles'}: ${product.stock}`;
+        if (product.glassPrice && product.openGlasses > 0) {
+            labelStock += ` + 🍷 ${product.openGlasses} ${currentLang === 'es' ? 'Copas' : 'Glasses'}`;
+        }
+
+        const canSellBottle = product.stock > 0;
+        const canSellGlass = product.glassPrice !== null && (product.openGlasses > 0 || product.stock > 0);
+
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
+            <div class="product-info">
+                <span class="${stockClass}">📦 ${labelStock}</span>
+                <h4 style="margin-top: 2px;">${product.name}</h4>
+                <span class="product-country">${product.country}</span>
+                
+                <div class="product-price-container">
+                    <span class="price-line">🍾 ${currentLang === 'es' ? 'Botella' : 'Bottle'}: <strong>$${product.price} MXN</strong></span>
+                    ${product.glassPrice ? `<span class="price-line">🍷 ${currentLang === 'es' ? 'Copa' : 'Glass'}: <strong>$${product.glassPrice} MXN</strong></span>` : ''}
+                </div>
+
+                <div class="btn-action-group">
+                    <button class="add-btn" onclick="addToCart(${product.id}, 'botella', event)" ${!canSellBottle ? 'disabled' : ''}>
+                        ${!canSellBottle ? (currentLang === 'es' ? 'Agotado' : 'Sold Out') : '🍾 + Botella'}
+                    </button>
+                    ${product.glassPrice ? `
+                    <button class="add-btn" onclick="addToCart(${product.id}, 'copa', event)" ${!canSellGlass ? 'disabled' : ''}>
+                        ${!canSellGlass ? (currentLang === 'es' ? 'Agotado' : 'Sold Out') : '🍷 + Copa'}
+                    </button>` : ''}
+                </div>
+            </div>
+            <div class="product-photo-box">${currentLang === 'es' ? 'Foto<br>Botella' : 'Bottle<br>Photo'}</div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function addToCart(productId, type, event) {
+    const product = inventory.find(p => p.id === productId);
+    if (!product) return;
+
+    const clickedBtn = event.target;
+    const originalText = clickedBtn.innerText;
+
+    if (type === 'botella') {
+        if (product.stock > 0) {
+            product.stock--;
+            cart.push({
+                id: product.id,
+                name: `${product.name} (${currentLang === 'es' ? 'Botella' : 'Bottle'})`,
+                price: product.price,
+                sellType: 'botella'
+            });
+            triggerButtonFeedback(clickedBtn, originalText);
+        }
+    } else if (type === 'copa') {
+        if (product.openGlasses > 0) {
+            product.openGlasses--;
+            cart.push({
+                id: product.id,
+                name: `${product.name} (${currentLang === 'es' ? 'Copa' : 'Glass'})`,
+                price: product.glassPrice,
+                sellType: 'copa'
+            });
+            triggerButtonFeedback(clickedBtn, originalText);
+        } else if (product.stock > 0) {
+            product.stock--;
+            product.openGlasses = product.glassesPerBottle - 1; 
+            cart.push({
+                id: product.id,
+                name: `${product.name} (${currentLang === 'es' ? 'Copa' : 'Glass'})`,
+                price: product.glassPrice,
+                sellType: 'copa'
+            });
+            triggerButtonFeedback(clickedBtn, originalText);
+        } else {
+            showCustomAlert(currentLang === 'es' ? "No hay inventario para abrir otra botella." : "Out of stock.", "⚠️");
+            return;
+        }
+    }
+    
+    saveData();
+    renderCart(); 
+    setTimeout(() => { renderCatalog(); }, 750);
+}
+
+function triggerButtonFeedback(button, originalText) {
+    button.innerText = "✓ OK";
+    button.style.backgroundColor = "#2e7d32";
+    button.style.color = "white";
+    button.style.borderColor = "#2e7d32";
+    button.disabled = true;
+}
+
+function removeFromCart(index) {
+    const item = cart[index];
+    const product = inventory.find(p => p.id === item.id);
+    
+    if (product) {
+        if (item.sellType === 'botella') {
+            product.stock++;
+        } else if (item.sellType === 'copa') {
+            product.openGlasses++;
+            if (product.openGlasses === product.glassesPerBottle) {
+                product.openGlasses = 0;
+                product.stock++;
+            }
+        }
+    }
+    cart.splice(index, 1);
+    saveData();
+    renderCatalog();
+    renderCart();
+}
+
+function clearCart() {
+    if (cart.length === 0) return;
+    for (let i = cart.length - 1; i >= 0; i--) {
+        removeFromCart(i);
+    }
+}
+
+function renderCart() {
+    const cartContainer = document.getElementById('cart-items');
+    cartContainer.innerHTML = '';
+    let total = 0;
+    
+    cart.forEach((item, index) => {
+        total += item.price;
+        const div = document.createElement('div');
+        div.className = 'cart-item';
+        div.innerHTML = `<span>${item.name}</span><button class="remove-item-btn" onclick="removeFromCart(${index})">✕</button>`;
+        cartContainer.appendChild(div);
+    });
+    
+    const selectedMethod = document.getElementById('payment-method') ? document.getElementById('payment-method').value : 'room';
+    if (selectedMethod === 'courtesy') {
+        total = 0;
+    }
+    
+    document.getElementById('cart-total').innerText = total.toFixed(2);
+    document.getElementById('footer-total').innerText = total.toFixed(2);
+}
+
+function loginAdmin() {
+    const inputPass = document.getElementById('admin-pass-input').value;
+    if (inputPass === ADMIN_PASSWORD) {
+        isAdminAuthenticated = true;
+        document.getElementById('admin-auth').classList.add('hidden');
+        document.getElementById('admin-panel').classList.remove('hidden');
+        document.getElementById('admin-pass-input').value = '';
+        renderAdminInventory();
+    } else {
+        showCustomAlert(currentLang === 'es' ? 'Contraseña de seguridad incorrecta.' : 'Invalid password.', '❌');
+    }
+}
+
+function logoutAdmin() {
+    isAdminAuthenticated = false;
+    document.getElementById('admin-panel').classList.add('hidden');
+    document.getElementById('admin-auth').classList.remove('hidden');
+    switchTab('pos');
+}
+
+function renderAdminInventory() {
+    const tbody = document.getElementById('admin-inventory-body');
+    tbody.innerHTML = '';
+    
+    inventory.forEach(product => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${product.name}</strong> <small style="color:#8e827e;">(${product.country})</small></td>
+            <td>${product.category}</td>
+            <td>
+                <span class="stock-badge ${product.stock <= 3 ? 'low' : ''}" style="display:inline-block; margin-bottom:0;">
+                    Bot: ${product.stock} ${product.openGlasses > 0 ? `+ Copas: ${product.openGlasses}` : ''}
+                </span>
+            </td>
+            <td>
+                <input type="number" id="stock-feed-${product.id}" min="1" placeholder="0" 
+                       style="width: 75px; padding: 5px 8px; border: 1px solid #d5cbca; border-radius: 6px; font-size: 0.8rem; text-align: center; outline: none;">
+            </td>
+            <td>
+                <button class="checkout-btn" onclick="feedStock(${product.id})" 
+                        style="background: #2e7d32; padding: 5px 12px; font-size: 0.75rem; width: auto;">
+                    + Añadir
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function feedStock(productId) {
+    const inputField = document.getElementById(`stock-feed-${productId}`);
+    const unitsToAdd = parseInt(inputField.value);
+    
+    if (isNaN(unitsToAdd) || unitsToAdd <= 0) {
+        return showCustomAlert(currentLang === 'es' 
+            ? 'Operación rechazada: Solo se permite ingresar cantidades mayores a 0.' 
+            : 'Operation rejected: Amounts must be greater than 0.', '⚠️');
+    }
+    
+    const product = inventory.find(p => p.id === productId);
+    if (product) {
+        product.stock += unitsToAdd;
+        inputField.value = ''; 
+        saveData();
+        renderAdminInventory();
+        renderCatalog();
+        
+        showCustomAlert(currentLang === 'es' 
+            ? `¡Inventario Alimentado! Se sumaron ${unitsToAdd} botellas a "${product.name}".`
+            : `Success! Added ${unitsToAdd} bottles to "${product.name}".`, '✅');
+    }
+}
+
+function openDatosVenta() { document.getElementById('modal-datos').classList.remove('hidden'); }
+function closeDatosVenta() { document.getElementById('modal-datos').classList.add('hidden'); }
+
+function checkout() {
+    if (cart.length === 0) {
+        return showCustomAlert(currentLang === 'es' ? 'El carrito está vacío.' : 'Cart is empty.', '🛒');
+    }
+    
+    const guestName = document.getElementById('guest-name').value.trim();
+    const guestRoom = document.getElementById('guest-room').value.trim();
+    const waiterName = document.getElementById('waiter-name').value.trim();
+
+    if (!guestName || !guestRoom || !waiterName) {
+        showCustomAlert(currentLang === 'es' 
+            ? 'Error: Nombre del Huésped, Habitación y Mesero son requeridos.' 
+            : 'Error: Guest Name, Room, and Waiter are mandatory fields.', '⚠️');
+        return; 
+    }
+    
+    const method = document.getElementById('payment-method').value;
+    const total = method === 'courtesy' ? 0 : cart.reduce((sum, item) => sum + item.price, 0);
+
+    // Registra la venta guardando la fecha actual ISO (YYYY-MM-DD)
+    const todayISO = new Date().toISOString().split('T')[0];
+
+    salesReport.push({
+        id: "TXN-" + Math.floor(1000 + Math.random() * 9000),
+        guest: guestName,
+        room: guestRoom,
+        waiter: waiterName,
+        method: method,
+        total: total,
+        date: todayISO,
+        itemsSold: [...cart]
+    });
+    
+    cart = [];
+    document.getElementById('guest-name').value = '';
+    document.getElementById('guest-room').value = '';
+    document.getElementById('waiter-name').value = '';
+    document.getElementById('payment-method').value = 'room';
+    
+    saveData();
+    renderCart();
+    renderReport();
+    closeDatosVenta();
+    
+    showCustomAlert(currentLang === 'es' ? '¡Cargo procesado con éxito!' : 'Charge posted successfully!', '🍷');
+}
+
+// CONTROL DE INTERFAZ DEL CALENDARIO
+function togglePeriodInput() {
+    const period = document.getElementById('report-period-type').value;
+    if (period === 'daily') {
+        document.getElementById('report-filter-date').classList.remove('hidden');
+        document.getElementById('report-filter-month').classList.add('hidden');
+    } else {
+        document.getElementById('report-filter-date').classList.add('hidden');
+        document.getElementById('report-filter-month').classList.remove('hidden');
+    }
+    renderReport();
+}
+
+// REPORTE CON CAPACIDAD DE FILTRADO DIARIO Y MENSUAL
+function renderReport() {
+    const tbody = document.getElementById('report-body');
+    tbody.innerHTML = '';
+    let grandTotal = 0;
+
+    const periodType = document.getElementById('report-period-type').value;
+    const filterDate = document.getElementById('report-filter-date').value; // YYYY-MM-DD
+    const filterMonth = document.getElementById('report-filter-month').value; // YYYY-MM
+
+    salesReport.forEach(sale => {
+        // Validación de fechas para el filtro
+        if (periodType === 'daily' && filterDate && sale.date !== filterDate) return;
+        if (periodType === 'monthly' && filterMonth && (!sale.date || !sale.date.startsWith(filterMonth))) return;
+
+        grandTotal += sale.total;
+        
+        const grouped = {};
+        sale.itemsSold.forEach(item => {
+            const key = `${item.id}-${item.sellType}`;
+            if (!grouped[key]) {
+                grouped[key] = {
+                    cleanName: item.name.substring(0, item.name.lastIndexOf(' (')) || item.name,
+                    sellType: item.sellType,
+                    count: 0
+                };
+            }
+            grouped[key].count++;
+        });
+
+        const itemsListText = Object.values(grouped).map(g => {
+            if (g.sellType === 'copa') {
+                return currentLang === 'es' 
+                    ? `${g.cleanName} (${g.count} ${g.count === 1 ? 'copa' : 'copas'})`
+                    : `${g.cleanName} (${g.count} ${g.count === 1 ? 'glass' : 'glasses'})`;
+            } else {
+                return currentLang === 'es' 
+                    ? `${g.cleanName} (${g.count} ${g.count === 1 ? 'botella' : 'botellas'})`
+                    : `${g.cleanName} (${g.count} ${g.count === 1 ? 'bottle' : 'bottles'})`;
+            }
+        }).join(', ');
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${sale.id}</strong><br><small style="color:#8e827e;">${itemsListText}</small></td>
+            <td>${sale.guest}</td>
+            <td>${sale.room}</td>
+            <td><em>${sale.waiter}</em></td> 
+            <td>${translations[currentLang]["pay" + sale.method.charAt(0).toUpperCase() + sale.method.slice(1)] || sale.method.toUpperCase()}</td>
+            <td><strong>$${sale.total.toFixed(2)}</strong></td>
+        `;
+        tbody.appendChild(tr);
+    });
+    document.getElementById('report-grand-total').innerText = grandTotal.toFixed(2);
+}
+
+// EXPORTAR ARCHIVO PDF (Apto para Clientes y Administradores en GitHub Pages)
+function exportReportToPDF() {
+    const element = document.getElementById('report-printable-block');
+    const filterControls = document.getElementById('report-filter-controls');
+    const btnPdf = document.getElementById('btn-pdf-trigger');
+    const btnClear = document.getElementById('btn-clear-trigger');
+
+    // Ocultar temporalmente los controles interactivos para que no salgan en el PDF
+    filterControls.classList.add('hidden');
+    btnPdf.classList.add('hidden');
+    btnClear.classList.add('hidden');
+    element.classList.add('pdf-render-area');
+
+    const periodType = document.getElementById('report-period-type').value;
+    const dateVal = document.getElementById('report-filter-date').value || "General";
+    const monthVal = document.getElementById('report-filter-month').value || "General";
+    const labelFilename = periodType === 'daily' ? dateVal : monthVal;
+
+    const options = {
+        margin:       0.4,
+        filename:     `Corte_Caja_${labelFilename}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    html2pdf().set(options).from(element).save().then(() => {
+        // Restaurar la visibilidad original de la interfaz de la aplicación
+        filterControls.classList.remove('hidden');
+        btnPdf.classList.remove('hidden');
+        btnClear.classList.remove('hidden');
+        element.classList.remove('pdf-render-area');
+    });
+}
+
+function executeCashCut() {
+    if (salesReport.length === 0) {
+        return showCustomAlert(currentLang === 'es' ? 'No hay ventas para este corte.' : 'No sales recorded.', '📋');
+    }
+    const grandTotal = salesReport.reduce((sum, sale) => sum + sale.total, 0);
+    const confirmation = confirm(currentLang === 'es'
+        ? `📋 CORTE DE CAJA\nTotal: $${grandTotal.toFixed(2)} MXN\n\n¿Desea reiniciar el turno? Se borrarán los datos de la tabla.`
+        : `📋 SHIFT CLOSE\nTotal: $${grandTotal.toFixed(2)} MXN\n\nReset shift data? This will clear the table.`);
+    
+    if (confirmation) {
+        salesReport = [];
+        saveData();
+        renderReport();
+    }
+}
+
+// INICIALIZACIÓN POR DEFECTO
+window.onload = function() {
+    // Establecer la fecha de hoy en el calendario por defecto
+    document.getElementById('report-filter-date').value = new Date().toISOString().split('T')[0];
+    renderCatalog();
+    renderReport();
+};
+</script>
+
+</body>
+</html>
 
