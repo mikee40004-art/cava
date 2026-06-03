@@ -499,7 +499,7 @@ let currentLang = 'es';
 let currentCategory = 'Todos';
 
 let isAdminAuthenticated = false;
-const ADMIN_PASSWORD = "CavaAdmin2026"; 
+const ADMIN_PASSWORD = "Cava2026"; 
 
 const translations = {
     es: {
@@ -868,7 +868,8 @@ function checkout() {
     const total = method === 'courtesy' ? 0 : cart.reduce((sum, item) => sum + item.price, 0);
 
     // Registra la fecha actual ISO local (YYYY-MM-DD)
-    const todayISO = new Date().toISOString().split('T')[0];
+    const localDate = new Date();
+    const todayISO = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
 
     salesReport.push({
         id: "TXN-" + Math.floor(1000 + Math.random() * 9000),
@@ -998,18 +999,26 @@ function executeCashCut() {
         renderReport();
     }
 }
-
-// INICIALIZACIÓN DE LA APLICACIÓN
+// INICIALIZACIÓN DE LA APLICACIÓN (CORREGIDA PARA HORA LOCAL)
 window.onload = function() {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const localDate = new Date();
+    const year = localDate.getFullYear();
+    // Agrega un cero al inicio si el mes o día son menores a 10
+    const month = String(localDate.getMonth() + 1).padStart(2, '0'); 
+    const day = String(localDate.getDate()).padStart(2, '0');
     
-    // Por defecto, inicializa el rango "Desde / Hasta" con el día de hoy
+    // Formato final requerido por el calendario: YYYY-MM-DD
+    const todayStr = `${year}-${month}-${day}`;
+    
+    // Inicializa el rango "Desde / Hasta" con el día de hoy local
     document.getElementById('report-start-date').value = todayStr;
     document.getElementById('report-end-date').value = todayStr;
     
     renderCatalog();
     renderReport();
 };
+
+
 </script>
 
 </body>
