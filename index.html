@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cava POS Premium - Aplicación Fija</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght=600&family=Poppins:wght=300;400;500;600&display=swap" rel="stylesheet">
-    <!-- Librería externa para generación nativa de PDF en el cliente (GitHub Pages) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         /* --- CONFIGURACIÓN DE PANTALLA FIJA (ESTILO APP NATIVA) --- */
@@ -356,7 +355,6 @@
     <div class="report-container" id="report-printable-block">
         <h2 class="report-main-title" data-i18n="reportTitle">Reporte Diario - Corte de Caja</h2>
         
-        <!-- RANGO DE BUSQUEDA AMPLIADO POR CALENDARIO (FECHA INICIAL A FECHA FINAL) -->
         <div class="report-filter-bar" id="report-filter-controls">
             <label for="report-start-date">Fecha de:</label>
             <input type="date" id="report-start-date" onchange="renderReport()">
@@ -499,7 +497,7 @@ let currentLang = 'es';
 let currentCategory = 'Todos';
 
 let isAdminAuthenticated = false;
-const ADMIN_PASSWORD = "CavaAdmin2026"; 
+const ADMIN_PASSWORD = "Cava2026"; 
 
 const translations = {
     es: {
@@ -984,21 +982,24 @@ function exportReportToPDF() {
     });
 }
 
+// FUNCIÓN DE CIERRE DE CAJA OPTIMIZADA PARA PROTEGER EL INVENTARIO DE LA CAVA
 function executeCashCut() {
     if (salesReport.length === 0) {
         return showCustomAlert(currentLang === 'es' ? 'No hay ventas para este corte.' : 'No sales recorded.', '📋');
     }
     const grandTotal = salesReport.reduce((sum, sale) => sum + sale.total, 0);
     const confirmation = confirm(currentLang === 'es'
-        ? `📋 CORTE DE CAJA\nTotal: $${grandTotal.toFixed(2)} MXN\n\n¿Desea reiniciar el turno? Se borrarán los datos de la tabla.`
-        : `📋 SHIFT CLOSE\nTotal: $${grandTotal.toFixed(2)} MXN\n\nReset shift data? This will clear the table.`);
+        ? `📋 CORTE DE CAJA\nTotal: $${grandTotal.toFixed(2)} MXN\n\n¿Desea reiniciar el turno? Se borrarán los datos de la tabla de ventas, pero se conservará el Stock actual de botellas.`
+        : `📋 SHIFT CLOSE\nTotal: $${grandTotal.toFixed(2)} MXN\n\nReset shift data? This will clear sales, but bottle stock will be saved.`);
     
     if (confirmation) {
-        salesReport = [];
-        saveData();
+        salesReport = []; // Limpiamos únicamente el arreglo de ventas
+        saveData();       // Al guardar, el inventario actual se preservará intacto en localStorage
         renderReport();
+        renderCatalog();  // Asegura que la vista de venta refleje el stock real de inmediato
     }
 }
+
 // INICIALIZACIÓN DE LA APLICACIÓN (CORREGIDA PARA HORA LOCAL)
 window.onload = function() {
     const localDate = new Date();
@@ -1017,7 +1018,6 @@ window.onload = function() {
     renderCatalog();
     renderReport();
 };
-
 
 </script>
 
